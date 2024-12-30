@@ -21,7 +21,7 @@ use stable_deref_trait::StableDeref;
 /// `RootT: 'static` and `NodeT: 'static` which are validity bounds on the *types* but these don't imply
 /// that any data must *actually* live that long at run-time.
 ///
-/// To give another example: If `RootT` is a container type `SomeRoot<'a>` containing `&'a mut NoteT`
+/// To give another example: If `RootT` is a container type `SomeRoot<'a>` containing `&'a mut NodeT`
 /// that you want to [`advance`][MutCursorRootedVec::advance_if_empty] into, you could use
 /// `MutCursorRootedVec<'a, SomeRoot<'a>, NodeT>`.
 ///
