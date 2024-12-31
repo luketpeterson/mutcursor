@@ -17,7 +17,13 @@
 
 #![doc = include_str!("../README.md")]
 
+// Uses unstable features for `docs.rs`.
+// This is okay, `docs.rs` uses a nightly compiler, and doesn't need to re-build documentation later.
+// To avoid broken `docs.rs` pages with new uploads, before publishing a new version to `crates.io`,
+// always check if `cargo docs-rs` (https://crates.io/crates/cargo-docs-rs) still works,
+// (with `rustup override set nightly` set locally to a current nightly).
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(docsrs, feature(clone_to_uninit))]
 
 #![no_std]
 
@@ -38,16 +44,25 @@ pub mod features {
     //! Enables usage of the `alloc` crate, and a public dependency on
     //! [`stable_deref_trait`] at version `1.*`
     //!
-    #![cfg_attr(not(feature = "alloc"), doc = "Enables the `MutCursorVec` and `MutCursorRootedVec` APIs.")]
-    #![cfg_attr(feature = "alloc", doc = "Enables the [`MutCursorVec`] and [`MutCursorRootedVec`] APIs.")]
+    #![cfg_attr(not(feature = "alloc"), doc = "Enables the `MutCursorVec` and `MutCursorRootedVec` APIs,")]
+    #![cfg_attr(not(feature = "alloc"), doc = "as well as the `unique` module.")]
+    #![cfg_attr(feature = "alloc", doc = "Enables the [`MutCursorVec`] and [`MutCursorRootedVec`] APIs,")]
+    #![cfg_attr(feature = "alloc", doc = "as well as the [`unique`](crate::unique) module.")]
     //! ## `std`
     //! Enables `std` support for [`StableDeref`], so you use std-only stable pointers
     //! without needing to depend on [`stable_deref_trait`] yourself.
     //!
+    //! Also extends our re-implementation of [`CloneToUninit`] (used for [`make_unique`] in the
+    //! `unique` module) to support `std`-only types (`OsStr`, `Path`).
+    //!
     #![cfg_attr(feature = "alloc", doc = "[`stable_deref_trait`]: stable_deref_trait")]
     #![cfg_attr(feature = "alloc", doc = "[`StableDeref`]: stable_deref_trait::StableDeref")]
+    #![cfg_attr(feature = "alloc", doc = "[`make_unique`]: crate::unique::UniqueExt::make_unique")]
+    #![cfg_attr(docsrs, doc = "[`CloneToUninit`]: std::clone::CloneToUninit")]
     //! [`stable_deref_trait`]: https://docs.rs/stable_deref_trait/1/stable_deref_trait/
     //! [`StableDeref`]: https://docs.rs/stable_deref_trait/1/stable_deref_trait/trait.StableDeref.html
+    //! [`make_unique`]: #alloc
+    //! [`CloneToUninit`]: https://doc.rust-lang.org/nightly/std/clone/trait.CloneToUninit.html
     use super::*;
 }
 
@@ -60,6 +75,11 @@ mod mut_cursor_vec;
 #[cfg(feature = "alloc")]
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub use mut_cursor_vec::*;
+
+
+#[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
+pub mod unique;
 
 #[cfg(feature = "alloc")]
 mod rooted_vec;
