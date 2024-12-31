@@ -86,7 +86,7 @@ For ultimate flexibility, we would want all the references to be stored by the s
 
 ## Acknowledgements
 
-[Frank Steffahn](https://github.com/steffahn) identified soundness issues in prior versions of this crate and made vast improvements to the design of [`MutCursorRootedVec`].
+[Frank Steffahn](https://github.com/steffahn) identified soundness issues in prior versions of this crate, made vast improvements to the design of [`MutCursorRootedVec`] and implemented the [`unique`] module.
 
 [`MutCursor`]: https://docs.rs/mutcursor/latest/mutcursor/struct.MutCursor.html
 [`top`]: https://docs.rs/mutcursor/latest/mutcursor/struct.MutCursor.html#method.top
