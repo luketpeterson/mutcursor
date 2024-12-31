@@ -4,26 +4,78 @@ use maybe_dangling::MaybeDangling;
 use stable_deref_trait::StableDeref;
 
 /// Similar to [`MutCursorVec`](crate::MutCursorVec), but provides for a `RootT` type at the bottom of the
-/// stack that is different from the `NodeT` types above it
+/// stack that is different from the `NodeT` types above it.  This is useful when the bottom of the stack
+/// is a container type, or a smart-pointer type such as [`Rc`](std::rc::Rc), [`Arc`](std::sync::Arc),
+/// or [`RefMut`](core::cell::RefMut).
 ///
-/// Usage Note: This type owns (as opposed to borrows) the root object from which the rest of the
-/// stack descends, therefore, it can be used without an associated lifetime. For API soundness,
-/// you still have to define a “lower bound” for type validity.
+/// ### Usage
+/// This type can own (as opposed to just borrow) the root object from which the rest of the stack descends,
+/// however this comes with several complications.
 ///
-/// In many cases, you can however simply use
-/// `MutCursorRootedVec<'static, RootT, NodeT>`. This requires `RootT: 'static` and `NodeT: 'static`
-/// which are validity bound on the *types* but these don't imply that any data must *actually* life that long
-/// at run-time.
+/// #### [`StableDeref`] Requirement
+/// To ensure moving the `MutCursorRootedVec` doesn't invalidate any pointers, you must provide a type that
+/// implements `DerefMut<Target = NodeT>` and the [`StableDeref`] marker trait.  This can be an intermediate
+/// type, and needn't be `RootT` itself.
 ///
-/// To give another example: If `RootT` is a container type `SomeRoot<'a>` containing `&'a mut NoteT`
-/// that you want to [`advance`][MutCursorRootedVec::advance_if_empty] into,
-/// you could use `MutCursorRootedVec<'a, SomeRoot<'a>, NodeT>`.
+/// #### Associated Lifetime
+/// `MutCursorRootedVec` can be used without an associated lifetime. For API soundness, however, you still
+/// must define a “lower bound” for type validity.  In many cases you can simply use `'static`. This requires
+/// `RootT: 'static` and `NodeT: 'static` which are validity bounds on the *types* but these don't imply
+/// that any data must *actually* live that long at run-time.
 ///
-/// `MutCursorRootedVec` doesn't implement [`Deref`](core::ops::Deref), and accessors return [`Option`], so therefore it is
-/// allowed to be empty, unlike some of the other types in this crate.
+/// To give another example: If `RootT` is a container type `SomeRoot<'a>` containing `&'a mut NodeT`
+/// that you want to [`advance`][MutCursorRootedVec::advance_if_empty] into, you could use
+/// `MutCursorRootedVec<'a, SomeRoot<'a>, NodeT>`.
+///
+/// ### Additional
+///
+/// `MutCursorRootedVec` doesn't implement [`Deref`](core::ops::Deref), and accessors return [`Option`],
+/// so therefore it is allowed to be empty, unlike some of the other types in this crate.
 ///
 /// `MutCursorRootedVec` is not available if the [`alloc`](crate::features#alloc) feature is disabled.
 /// (The feature is enabled by default.)
+///
+/// ### Examples
+/// 
+/// For usage with an [`Rc`](std::rc::Rc) or [`Arc`](std::sync::Arc), check out the [`unique`](super::unique) module.
+///
+/// The example code below begins traversal from a container ([`Vec`](alloc::vec::Vec)), which
+/// implements [`StableDeref`].
+/// ```
+/// # use mutcursor::MutCursorRootedVec;
+/// let mut tree_vec = vec![TreeNode::new(5)];
+/// let mut node_stack = MutCursorRootedVec::<'static, Vec<TreeNode>, TreeNode>::new(tree_vec);
+///
+/// // Begin traversal from the root
+/// // - The first closure arg provides a reference that is guaranteed to be stable in memory
+/// // - The second closure arg provides a reference to the NodeT to traverse from
+/// node_stack.advance_from_root_twostep(|v| Some(v), |slice_ref| slice_ref.get_mut(0));
+///
+/// // Traverse to the last node
+/// while node_stack.advance(|node| {
+///     node.traverse()
+/// }) {}
+///
+/// assert_eq!(node_stack.top().unwrap().val, 0);
+/// assert_eq!(node_stack.depth(), 6);
+///
+/// # struct TreeNode {
+/// # val: usize,
+/// # next: Option<Box<TreeNode>>
+/// # }
+/// # impl TreeNode {
+/// #    fn new(count: usize) -> Self {
+/// #        if count > 0 {
+/// #            Self {val: count, next: Some(Box::new(Self::new(count-1)))}
+/// #        } else {
+/// #            Self {val: 0, next: None}
+/// #        }
+/// #    }
+/// #    fn traverse(&mut self) -> Option<&mut Self> {
+/// #        self.next.as_mut().map(|boxed| &mut **boxed)
+/// #    }
+/// # }
+/// ```
 pub struct MutCursorRootedVec<'l, RootT: 'l, NodeT: ?Sized + 'l> {
     top: Option<NonNull<NodeT>>,
     root: MaybeDangling<Option<RootT>>,
@@ -152,9 +204,8 @@ impl<'l, RootT: 'l, NodeT: ?Sized + 'l> MutCursorRootedVec<'l, RootT, NodeT> {
     ///
     /// Panics if the root has been taken via [`Self::take_root`]
     ///
-    /// This version of [`top_or_advance_mut`][Self::top_or_advance_mut] supports
-    /// a second step, when the `RootT` doesn't contain any stable pointers
-    /// *directly* to a `NodeT`.
+    /// The `_twostep` version of [`top_or_advance_mut`][Self::top_or_advance_mut] is useful when you need
+    /// additional logic to select the `NodeT` reference, as when `RootT` is a container.
     #[inline]
     pub fn top_or_advance_mut_twostep<F, G, IntermediateRef>(&mut self, step_f1: F, step_f2: G) -> &mut NodeT
     where
@@ -216,9 +267,8 @@ impl<'l, RootT: 'l, NodeT: ?Sized + 'l> MutCursorRootedVec<'l, RootT, NodeT> {
     ///
     /// Panics if the root has been taken via [`Self::take_root`]
     ///
-    /// This version of [`advance_if_empty`][Self::advance_if_empty] supports
-    /// a second step, when the `RootT` doesn't contain any stable pointers
-    /// *directly* to a `NodeT`.
+    /// The `_twostep` version of [`advance_if_empty`][Self::advance_if_empty] is useful when you need
+    /// additional logic to select the `NodeT` reference, as when `RootT` is a container.
     #[inline]
     pub fn advance_if_empty_twostep<F, G, IntermediateRef>(&mut self, step_f1: F, step_f2: G)
     where
@@ -254,14 +304,13 @@ impl<'l, RootT: 'l, NodeT: ?Sized + 'l> MutCursorRootedVec<'l, RootT, NodeT> {
     /// Begins the traversal by stepping from the root to the first node, pushing the first node
     /// reference onto the stack. Always resets the stack.
     ///
-    /// If either of the `step_f…` closures returns `Some` the existing stack will be replaced with the new node.
+    /// If both of the `step_f…` closures return `Some`, the existing stack will be replaced with the new node.
     /// If either of the `step_f…` closures returns `None` the stack will be left completely empty.
     ///
     /// Panics if the root has been taken via [`Self::take_root`]
     ///
-    /// This version of [`advance_from_root`][Self::advance_from_root] supports
-    /// a second step, when the `RootT` doesn't contain any stable pointers
-    /// *directly* to a `NodeT`.
+    /// The `_twostep` version of [`advance_from_root`][Self::advance_from_root] is useful when you need
+    /// additional logic to select the `NodeT` reference, as when `RootT` is a container.
     #[inline]
     pub fn advance_from_root_twostep<F, G, IntermediateRef>(&mut self, step_f1: F, step_f2: G) -> bool
     where
