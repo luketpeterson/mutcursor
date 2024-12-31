@@ -7,10 +7,42 @@
 //! API in the form of the <code>{[Arc](Arc::get_mut), [Rc](Rc::get_mut)}::get_mut</code>
 //! and <code>{[Arc](Arc::make_mut), [Rc](Rc::make_mut)}::make_mut</code> methods.
 //!
-//! These methods succeed when the reference-counted pointer is *unique*; in this
-//! module, we provide an API to encode this uniqueness property into a separate type
-//! which can fit the <code>[DerefMut] + [StableDeref]</code>
-//! interface.
+//! These methods succeed when the reference-counted pointer is *unique*; this module
+//! provides an API to encode the uniqueness property into a separate type, which can fit
+//! the <code>[DerefMut] + [StableDeref]</code> interface.
+//!
+//! ### Example Usage
+//! ```
+//! use mutcursor::{unique::UniqueExt, MutCursorRootedVec};
+//! use std::sync::Arc;
+//!
+//! type Link = Option<Arc<BinaryNode>>;
+//! struct Binary(Link);
+//! struct BinaryNode {
+//!     left: Link,
+//!     val: u16,
+//!     right: Link,
+//! }
+//!
+//! let binary = Binary(Some(Arc::new(BinaryNode {
+//!     left: Some(Arc::new(BinaryNode {
+//!         left: None,
+//!         val: 42,
+//!         right: None,
+//!     })),
+//!     val: 1337,
+//!     right: None,
+//! })));
+//! let mut node_stack = MutCursorRootedVec::<'static, Binary, BinaryNode>::new(binary);
+//!
+//! // Begin traversal from the root
+//! node_stack.advance_from_root(|v| Arc::get_unique(v.0.as_mut()?));
+//!
+//! // Traverse to the leftmost node
+//! while node_stack.advance(|node| Arc::get_mut(node.left.as_mut()?)) {}
+//!
+//! assert_eq!(node_stack.top().unwrap().val, 42);
+//! ```
 
 mod polyfill {
     use core::ffi::CStr;
