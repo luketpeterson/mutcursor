@@ -5,7 +5,9 @@ This crate provides types to safely store mutable references to parent nodes, fo
 
 [`MutCursor`] is more efficient because it avoids dynamic allocation, while [`MutCursorVec`] provides for an arbitrarily deep stack.
 
-[`MutCursorRootedVec`] supports mutable references to a separate root type and a different leaf type.  In the future I may generalize this pattern to be more flexible.
+[`MutCursorRootedVec`] supports mutable references to a separate root type and a different leaf type, for example borrowing a node from an owned container or dereferencing a smart-pointer.
+
+The [`unique`] module provides types to work with [`Rc`] or [`Arc`] pointers as the root of a `MutCursorRootedVec`.
 
 ## Usage
 ```rust
@@ -91,4 +93,7 @@ For ultimate flexibility, we would want all the references to be stored by the s
 [`MutCursor::try_map_into_mut`]: https://docs.rs/mutcursor/latest/mutcursor/struct.MutCursor.html#method.try_map_into_mut
 [`MutCursorVec`]: https://docs.rs/mutcursor/latest/mutcursor/struct.MutCursorVec.html
 [`MutCursorRootedVec`]: https://docs.rs/mutcursor/latest/mutcursor/struct.MutCursorRootedVec.html
+[`unique`]: https://docs.rs/mutcursor/latest/mutcursor/unique/index.html
 [`Vec`]: https://doc.rust-lang.org/std/vec/struct.Vec.html
+[`Rc`]: https://doc.rust-lang.org/std/rc/struct.Rc.html
+[`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html

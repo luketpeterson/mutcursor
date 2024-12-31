@@ -14,6 +14,7 @@
 //! [`MutCursor::try_map_into_mut`]: MutCursor::try_map_into_mut
 //! [`MutCursorVec`]: MutCursorVec
 //! [`MutCursorRootedVec`]: MutCursorRootedVec
+//! [`unique`]: unique
 
 #![doc = include_str!("../README.md")]
 
