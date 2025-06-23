@@ -7,6 +7,7 @@ license = "MIT OR Apache-2.0"
 description = "Safely stores mutable references to parent nodes, for backtracking during traversal of tree & graph structures"
 repository = "https://github.com/luketpeterson/mutcursor/"
 readme = "README.md"
+rust-version = "1.82"
 keywords = ["traversal", "tree", "backtacking", "stack", "cursor"]
 categories = ["no-std", "algorithms", "data-structures", "rust-patterns"]
 
